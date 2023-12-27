@@ -36,13 +36,13 @@ while cap.isOpened():
                 boxes = result.boxes.xyxy.cpu().numpy()
                 track_ids = result.boxes.id.cpu().numpy()
                 labels = result.boxes.cls.cpu().numpy()
-
+                confs = results.boxes.conf.cpu().numpy()
                 # Visualize the results on the frame
                 annotated_frame = result.plot()
 
                 # Loop through each detected object
-                for box, track_id, label in zip(boxes, track_ids, labels):
-                    x, y, w, h = box[:4]
+                for box, track_id, label, conf in zip(boxes, track_ids, labels, confs):
+                    x, y, w, h= box[:4]
                     label = int(label)
                     # Check if the object is "no-helmet"
                     if class_name[label] == 'no-helmet' and track_id not in noloop:

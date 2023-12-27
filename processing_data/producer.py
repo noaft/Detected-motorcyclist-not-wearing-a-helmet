@@ -1,22 +1,23 @@
-import cv2
 from kafka import KafkaProducer
+import cv2
+import numpy as np
 
 # Thông số Kafka
 kafka_bootstrap_servers = 'localhost:9092'
-kafka_topic = 'video_topic'
-
-# Open the video file
-video_path = 'D:/Python/@a.mp4'
-cap = cv2.VideoCapture(video_path)
+kafka_topic = 'video_test'
 
 # Kafka Producer configuration
 producer_conf = {
-    'bootstrap.servers': kafka_bootstrap_servers,
-    'client.id': 'video_producer'
+    'bootstrap_servers': kafka_bootstrap_servers,
+    'client_id': 'video_producer'
 }
 
 # Create a Kafka Producer
 producer = KafkaProducer(**producer_conf)
+
+# Open the video file
+video_path = 'D:/Python/video_test.mp4'
+cap = cv2.VideoCapture(video_path)
 
 # Read and send video frames to Kafka
 while cap.isOpened():
@@ -35,6 +36,9 @@ while cap.isOpened():
         # cv2.waitKey(25)
 
     else:
+        # Send a flag to indicate the end of the video
+        end_flag = "END_OF_VIDEO"
+        producer.send(kafka_topic, value=end_flag.encode())
         break
 
 # Release the video capture object
