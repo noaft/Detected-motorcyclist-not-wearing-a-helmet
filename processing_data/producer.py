@@ -37,8 +37,7 @@ while cap.isOpened():
 
     else:
         # Send a flag to indicate the end of the video
-        end_flag = "END_OF_VIDEO"
-        producer.send(kafka_topic, value=end_flag.encode())
+        
         break
 
 # Release the video capture object
