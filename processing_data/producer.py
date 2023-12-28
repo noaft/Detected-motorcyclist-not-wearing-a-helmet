@@ -3,45 +3,50 @@ import cv2
 import numpy as np
 
 # Thông số Kafka
-kafka_bootstrap_servers = 'localhost:9092'
-kafka_topic = 'video_test'
 
-# Kafka Producer configuration
-producer_conf = {
-    'bootstrap_servers': kafka_bootstrap_servers,
-    'client_id': 'video_producer'
-}
+def producer_kafka(kafka_topic, video_path ):
+    cap = cv2.VideoCapture(video_path)
 
-# Create a Kafka Producer
-producer = KafkaProducer(**producer_conf)
+    # Read and send video frames to Kafka
+    while cap.isOpened():
+        # Read a frame from the video
+        success, frame = cap.read()
 
-# Open the video file
-video_path = 'D:/Python/video_test.mp4'
-cap = cv2.VideoCapture(video_path)
+        if success:
+            # Convert the frame to bytes (you may need to serialize it based on your use case)
+            _, img_encoded = cv2.imencode('.jpg', frame)
+            img_bytes = img_encoded.tobytes()
 
-# Read and send video frames to Kafka
-while cap.isOpened():
-    # Read a frame from the video
-    success, frame = cap.read()
+            # Send the frame to Kafka
+            producer.send(kafka_topic, value=img_bytes)
 
-    if success:
-        # Convert the frame to bytes (you may need to serialize it based on your use case)
-        _, img_encoded = cv2.imencode('.jpg', frame)
-        img_bytes = img_encoded.tobytes()
+            # Uncomment the following line to introduce a delay (in milliseconds) between frames
+            # cv2.waitKey(25)
 
-        # Send the frame to Kafka
-        producer.send(kafka_topic, value=img_bytes)
+        else:
+            # Send a flag to indicate the end of the video
+            
+            break
 
-        # Uncomment the following line to introduce a delay (in milliseconds) between frames
-        # cv2.waitKey(25)
+        # Release the video capture object
+        cap.release()
 
-    else:
-        # Send a flag to indicate the end of the video
-        
-        break
+        # Flush the producer to make sure all messages are delivered
+        producer.flush()
 
-# Release the video capture object
-cap.release()
+if __name__ == "__main__":
+    kafka_bootstrap_servers = 'localhost:9092'
+    kafka_topic = 'video_test'
 
-# Flush the producer to make sure all messages are delivered
-producer.flush()
+    # Kafka Producer configuration
+    producer_conf = {
+        'bootstrap_servers': kafka_bootstrap_servers,
+        'client_id': 'video_producer'
+    }
+
+    # Create a Kafka Producer
+    producer = KafkaProducer(**producer_conf)
+
+    # Open the video file
+    video_path = 'D:/Python/video_test.mp4'
+    producer_kafka(kafka_topic,video_path)
