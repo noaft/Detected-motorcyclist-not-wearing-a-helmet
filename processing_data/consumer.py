@@ -6,7 +6,11 @@ import os
 import psycopg2
 import psycopg2
 # Kafka parameters
-
+from pyspark.sql import SparkSession
+from PIL import Image
+from pyspark.sql.functions import expr, udf
+from pyspark.sql.types import BinaryType
+import io
 noloop = []
 
 # Consume video frames from Kafka
@@ -47,6 +51,37 @@ def connect_postgresql():
     return connection
 
 
+
+
+def take_data():
+    #create connect to spark
+    spark = SparkSession.builder \
+        .appName("KafkaExample") \
+        .config("spark.jars.packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0") \
+        .getOrCreate()
+
+    kafka_bootstrap_servers = 'localhost:9092'
+    topic_name = 'video_test'
+    #read data earliest
+    kafka_df = spark.read \
+        .format("kafka") \
+        .option("kafka.bootstrap.servers", kafka_bootstrap_servers) \
+        .option("subscribe", topic_name) \
+        .option("startingOffsets", "earliest") \
+        .load()
+
+    tranform = kafka_df.select("value","timestamp")
+    tranform.show()
+    hex_to_bytes_udf = udf(lambda x: bytes.fromhex(x), BinaryType())
+    tranform = tranform.withColumn("value", hex_to_bytes_udf("value"))
+
+    # Convert binary data to a string representation for display
+    tranform = tranform.withColumn("value_str", tranform["value"].cast("string"))
+
+    # Show the DataFrame, excluding the "value" column
+    tranform.drop("value").show(truncate=False)
+
+
 def combine_model(consumer, output_dir, model):
     for message in consumer:
     # Check if it's the end of the video
@@ -54,7 +89,6 @@ def combine_model(consumer, output_dir, model):
             break
         # Convert the received bytes back to a frame
         nparr = np.frombuffer(message.value, np.uint8)
-        print(nparr)
         frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
         # YOLOv8 tracking
