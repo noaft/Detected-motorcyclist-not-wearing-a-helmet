@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import udf
+from pyspark.sql.functions import udf, col
 from pyspark.sql.types import BinaryType
 import cv2
 import numpy as np
@@ -31,13 +31,14 @@ def decode_image(value):
     return frame
 
 # Apply the UDF to the DataFrame
-kafka_df = kafka_df.withColumn('decoded_image', decode_image('value'))
+kafka_df = kafka_df.withColumn('decoded_image', col('value'))
 
 # Define a processing function to display frames
 def process_row(row):
     # Extract the decoded image
     frame = row['decoded_image']
-
+    frame = np.frombuffer(frame, np.uint8)
+    frame = cv2.imdecode(frame, cv2.IMREAD_COLOR)
     # Check if frame is not None before displaying
     if frame is not None:
         # Display the frame
