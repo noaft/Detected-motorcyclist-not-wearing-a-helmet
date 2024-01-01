@@ -4,19 +4,18 @@ from pyspark.sql.types import BinaryType
 import cv2
 import numpy as np
 
-
+# Create a Spark session
 spark = SparkSession.builder \
     .appName("YourAppName") \
     .config("spark.jars.packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0") \
     .config("spark.executor.extraJavaOptions", "-Dlog4j.configuration=log4j-error.properties") \
     .getOrCreate()
 
-
 # Define the Kafka topic and bootstrap servers
 kafka_bootstrap_servers = 'localhost:9092'
 topic_name = 'video_test'
 
-# Đọc dữ liệu từ Kafka
+# Read data from Kafka
 kafka_df = spark.read \
     .format("kafka") \
     .option("kafka.bootstrap.servers", kafka_bootstrap_servers) \
@@ -25,31 +24,34 @@ kafka_df = spark.read \
     .load()
 
 # Define a UDF to decode the image data
-value_column = kafka_df.select('value').first()['value']
+@udf(BinaryType())
+def decode_image(value):
+    nparr = np.frombuffer(value, np.uint8)
+    frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    return frame
 
-# Register the UDF
-nparr = np.frombuffer(value_column, np.uint8)
-frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-i = 1
-while i < 1000:
-    # Đọc một frame mới từ video hoặc Kafka
+# Apply the UDF to the DataFrame
+kafka_df = kafka_df.withColumn('decoded_image', decode_image('value'))
 
-    # Kiểm tra nếu không có frame nào được đọc
-    if frame is None:
-        break
+# Define a processing function to display frames
+def process_row(row):
+    # Extract the decoded image
+    frame = row['decoded_image']
 
-    # Hiển thị frame
-    cv2.imshow('Decoded Image', frame)
+    # Check if frame is not None before displaying
+    if frame is not None:
+        # Display the frame
+        cv2.imshow('Decoded Image', frame)
 
-    # Đợi một khoảng thời gian ngắn (ví dụ: 25 ms)
-    key = cv2.waitKey(25)
+        # Wait for a short duration (e.g., 25 ms)
+        key = cv2.waitKey(25)
 
-    # Nếu người dùng nhấn phím ESC, thoát khỏi vòng lặp
-    if key == 27:
-        break
+        # If the user presses ESC key, exit the loop
+        if key == 27:
+            exit()
 
-    i += 1
+# Apply the processing function to each row using foreach
+kafka_df.foreach(process_row)
 
-# Giải phóng tài nguyên
+# Release resources
 cv2.destroyAllWindows()
-cap.release()

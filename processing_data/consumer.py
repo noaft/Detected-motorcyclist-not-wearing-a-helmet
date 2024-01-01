@@ -54,33 +54,43 @@ def connect_postgresql():
 
 
 def take_data():
-    #create connect to spark
     spark = SparkSession.builder \
-        .appName("KafkaExample") \
+        .appName("YourAppName") \
         .config("spark.jars.packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0") \
+        .config("spark.executor.extraJavaOptions", "-Dlog4j.configuration=log4j-error.properties") \
         .getOrCreate()
 
+
+    # Define the Kafka topic and bootstrap servers
     kafka_bootstrap_servers = 'localhost:9092'
     topic_name = 'video_test'
-    #read data earliest
+
+    # Đọc dữ liệu từ Kafka
     kafka_df = spark.read \
         .format("kafka") \
         .option("kafka.bootstrap.servers", kafka_bootstrap_servers) \
         .option("subscribe", topic_name) \
         .option("startingOffsets", "earliest") \
         .load()
+    kafka_df = kafka_df.select("value", "timestamp")
+    
 
-    tranform = kafka_df.select("value","timestamp")
-    tranform.show()
-    hex_to_bytes_udf = udf(lambda x: bytes.fromhex(x), BinaryType())
-    tranform = tranform.withColumn("value", hex_to_bytes_udf("value"))
+def data_solu(kafka_df):
+    selected_columns = ["value"]
+    kafka_df = kafka_df.select(selected_columns)
 
-    # Convert binary data to a string representation for display
-    tranform = tranform.withColumn("value_str", tranform["value"].cast("string"))
+    # Duyệt qua từng dòng trong DataFrame và xử lý cột "value"
+    for row in kafka_df.collect():
+        value_column = row["value"]
 
-    # Show the DataFrame, excluding the "value" column
-    tranform.drop("value").show(truncate=False)
+        # Chuyển cột "value" thành mảng NumPy
+        nparr = np.frombuffer(value_column, np.uint8)
 
+        # Sử dụng OpenCV để giải mã ảnh từ mảng NumPy
+        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+        
+        
 
 def combine_model(consumer, output_dir, model):
     for message in consumer:
