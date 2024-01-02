@@ -14,7 +14,6 @@ import threading
 kafka_bootstrap_servers = 'localhost:9092'
 topic_name = 'video_test'
 class_name = ['helmet', 'no-helmet']
-output_dir = "D:/Python/no_helmet_images/"
 noloop = []
 
 def connect_postgresql():
@@ -42,7 +41,7 @@ def save_data_to_postgresql(frame, date, track_id):
             cursor.execute(query, (track_id, img_bytes, date))
         # Commit the changes to the database
 
-def process_row(row, output_dir):
+def process_row(row):
     # Extract the decoded image
     frame = row['decoded_image']
     frame = np.frombuffer(frame, np.uint8)
@@ -79,29 +78,6 @@ def process_row(row, output_dir):
 
         cv2.destroyAllWindows()
 
-def take_data():
-    spark = SparkSession.builder \
-        .appName("YourAppName") \
-        .config("spark.jars.packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0") \
-        .config("spark.executor.extraJavaOptions", "-Dlog4j.configuration=log4j-error.properties") \
-        .getOrCreate()
-
-    # Đọc dữ liệu từ Kafka
-    kafka_df = spark.read \
-        .format("kafka") \
-        .option("kafka.bootstrap.servers", kafka_bootstrap_servers) \
-        .option("subscribe", topic_name) \
-        .option("startingOffsets", "earliest") \
-        .load()
-    
-    kafka_df = kafka_df.select("value", "timestamp")
-    kafka_df = kafka_df.withColumn('decoded_image', col('value'))
-
-    partial_process_row = partial(process_row, output_dir=output_dir)
-    kafka_df.foreach(partial_process_row)
-
-import threading
-
 class UninterruptibleThread(threading.Thread):
     def __init__(self, *args, **kwargs):
         super(UninterruptibleThread, self).__init__(*args, **kwargs)
@@ -113,6 +89,31 @@ class UninterruptibleThread(threading.Thread):
         except KeyboardInterrupt:
             pass
 
+def take_data():
+    spark = SparkSession.builder \
+        .appName("YourAppName") \
+        .config("spark.jars.packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0") \
+        .config("spark.executor.extraJavaOptions", "-Dlog4j.configuration=log4j-error.properties") \
+        .getOrCreate()
+
+    # Đọc dữ liệu từ Kafka
+    kafka_df = spark.readStream \
+        .format("kafka") \
+        .option("kafka.bootstrap.servers", kafka_bootstrap_servers) \
+        .option("subscribe", topic_name) \
+        .option("startingOffsets", "earliest") \
+        .load()
+    
+    kafka_df = kafka_df.select("value", "timestamp")
+    kafka_df = kafka_df.withColumn('decoded_image', col('value'))
+
+    partial_process_row = partial(process_row)
+    query = kafka_df.writeStream \
+        .foreach(partial_process_row) \
+        .start()
+
+    # Chờ truy vấn streaming kết thúc
+    query.awaitTermination()
 
 if __name__ == '__main__':
     thread = UninterruptibleThread(target=take_data)
