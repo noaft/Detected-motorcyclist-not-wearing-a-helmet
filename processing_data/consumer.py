@@ -8,9 +8,10 @@ import psycopg2
 # Kafka parameters
 from pyspark.sql import SparkSession
 from PIL import Image
-from pyspark.sql.functions import expr, udf
+from pyspark.sql.functions import expr, udf, col
 from pyspark.sql.types import BinaryType
 import io
+from functools import partial
 noloop = []
 
 # Consume video frames from Kafka
@@ -52,7 +53,7 @@ def connect_postgresql():
 
 
 
-
+#take data from kafka with spark
 def take_data():
     spark = SparkSession.builder \
         .appName("YourAppName") \
@@ -73,35 +74,19 @@ def take_data():
         .option("startingOffsets", "earliest") \
         .load()
     kafka_df = kafka_df.select("value", "timestamp")
+    kafka_df = kafka_df.withColumn('decoded_image', col('value'))
+    partial_process_row = partial(process_row, output_dir=output_dir, model=model)
+    kafka_df.foreach(partial_process_row)
     
-
-def data_solu(kafka_df):
-    selected_columns = ["value"]
-    kafka_df = kafka_df.select(selected_columns)
-
-    # Duyệt qua từng dòng trong DataFrame và xử lý cột "value"
-    for row in kafka_df.collect():
-        value_column = row["value"]
-
-        # Chuyển cột "value" thành mảng NumPy
-        nparr = np.frombuffer(value_column, np.uint8)
-
-        # Sử dụng OpenCV để giải mã ảnh từ mảng NumPy
-        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-
-        
-        
-
-def combine_model(consumer, output_dir, model):
-    for message in consumer:
-    # Check if it's the end of the video
-        if message.value is None:
-            break
-        # Convert the received bytes back to a frame
-        nparr = np.frombuffer(message.value, np.uint8)
-        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-
-        # YOLOv8 tracking
+#take data from a row
+def process_row(row, output_dir, model):
+    # Extract the decoded image
+    frame = row['decoded_image']
+    frame = np.frombuffer(frame, np.uint8)
+    frame = cv2.imdecode(frame, cv2.IMREAD_COLOR)
+    # Check if frame is not None before displaying
+    if frame is not None:
+        # Display the frame
         results = model.track(frame, persist=True)
 
         if results and results[0].boxes.id is not None:
@@ -128,24 +113,16 @@ def combine_model(consumer, output_dir, model):
 
                 cv2.imshow("YOLOv8 Tracking", annotated_frame)
 
-        if cv2.waitKey(1) & 0xFF == ord("q"):
-            break
+        # Wait for a short duration (e.g., 25 ms)
+        key = cv2.waitKey(25)
+
+        # If the user presses ESC key, exit the loop
+        if key == 27:
+            exit()
 
         cv2.destroyAllWindows()
 
 if __name__ == '__main__':
-    kafka_bootstrap_servers = 'localhost:9092'
-    kafka_topic = 'video_test'
-
-    # Kafka consumer configuration
-    consumer_conf = {
-        'bootstrap_servers': kafka_bootstrap_servers,
-        'group_id': 'video_consumer',
-        'auto_offset_reset': 'earliest'
-    }
-
-    # Create Kafka consumer
-    consumer = KafkaConsumer(kafka_topic, **consumer_conf)
 
     # YOLOv8 model initialization
     class_name = ['helmet', 'no-helmet']
@@ -154,4 +131,5 @@ if __name__ == '__main__':
     # Directory for saving 'no-helmet' images
     output_dir = "D:/Python/no_helmet_images/"
     os.makedirs(output_dir, exist_ok=True)
-    combine_model(consumer, output_dir, model )
+    take_data()
+    

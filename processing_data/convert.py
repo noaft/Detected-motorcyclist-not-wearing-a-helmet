@@ -2,6 +2,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import udf, col
 from pyspark.sql.types import BinaryType
 import cv2
+from ultralytics import YOLO
 import numpy as np
 
 # Create a Spark session
@@ -41,6 +42,7 @@ def process_row(row):
     frame = cv2.imdecode(frame, cv2.IMREAD_COLOR)
     # Check if frame is not None before displaying
     if frame is not None:
+        
         # Display the frame
         cv2.imshow('Decoded Image', frame)
 
