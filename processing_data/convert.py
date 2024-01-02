@@ -1,60 +1,25 @@
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import udf, col
-from pyspark.sql.types import BinaryType
-import cv2
-from ultralytics import YOLO
-import numpy as np
+import psycopg2
+def connect_postgresql():
+    conn_params = {
+        'database': 'customers',
+        'user': 'postgres',
+        'password': '121203Toan',
+        'host': 'localhost',
+        'port': 5432
+    }
+    
+    return psycopg2.connect(**conn_params)
 
-# Create a Spark session
-spark = SparkSession.builder \
-    .appName("YourAppName") \
-    .config("spark.jars.packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0") \
-    .config("spark.executor.extraJavaOptions", "-Dlog4j.configuration=log4j-error.properties") \
-    .getOrCreate()
+def save_data_to_postgresql(frame, date, track_id):
 
-# Define the Kafka topic and bootstrap servers
-kafka_bootstrap_servers = 'localhost:9092'
-topic_name = 'video_test'
-
-# Read data from Kafka
-kafka_df = spark.read \
-    .format("kafka") \
-    .option("kafka.bootstrap.servers", kafka_bootstrap_servers) \
-    .option("subscribe", topic_name) \
-    .option("startingOffsets", "earliest") \
-    .load()
-
-# Define a UDF to decode the image data
-@udf(BinaryType())
-def decode_image(value):
-    nparr = np.frombuffer(value, np.uint8)
-    frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-    return frame
-
-# Apply the UDF to the DataFrame
-kafka_df = kafka_df.withColumn('decoded_image', col('value'))
-
-# Define a processing function to display frames
-def process_row(row):
-    # Extract the decoded image
-    frame = row['decoded_image']
-    frame = np.frombuffer(frame, np.uint8)
-    frame = cv2.imdecode(frame, cv2.IMREAD_COLOR)
-    # Check if frame is not None before displaying
-    if frame is not None:
-        
-        # Display the frame
-        cv2.imshow('Decoded Image', frame)
-
-        # Wait for a short duration (e.g., 25 ms)
-        key = cv2.waitKey(25)
-
-        # If the user presses ESC key, exit the loop
-        if key == 27:
-            exit()
-
-# Apply the processing function to each row using foreach
-kafka_df.foreach(process_row)
-
-# Release resources
-cv2.destroyAllWindows()
+    # Connect to PostgreSQL using a context manager
+    with connect_postgresql() as conn:
+        # Create a cursor
+        with conn.cursor() as cursor:
+            # SQL query with placeholders
+            query = "INSERT INTO images (track_id, img_, date_) VALUES(%s, %s, %s)"
+            # Execute the query with actual values
+            cursor.execute(query, (10,100002,'23-0-2003'))
+        # Commit the changes to the database
+        conn.commit()
+save_data_to_postgresql(frame, date, track_id)
