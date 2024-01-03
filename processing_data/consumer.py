@@ -16,7 +16,8 @@ topic_name = 'video_test'
 class_name = ['helmet', 'no-helmet']
 noloop = []
 
-def connect_postgresql():
+def save_data_to_postgresql(frame, date, track_id):
+    # Database connection parameters
     conn_params = {
         'database': 'customer',
         'user': 'postgres',
@@ -24,23 +25,23 @@ def connect_postgresql():
         'host': 'localhost',
         'port': 5432
     }
-    
-    return psycopg2.connect(**conn_params)
 
-def save_data_to_postgresql(frame, date, track_id):
+    # Encode the image
     _, img_encoded = cv2.imencode('.jpg', frame)
     img_bytes = img_encoded.tobytes()
-    print(img_bytes)
+
     # Connect to PostgreSQL using a context manager
-    with connect_postgresql() as conn:
+    with psycopg2.connect(**conn_params) as conn:
         # Create a cursor
         with conn.cursor() as cursor:
             # SQL query with placeholders
-            query = "INSERT INTO images (track_id, img_, date_) VALUES(%s, %s, %s)"
+            query = sql.SQL("INSERT INTO images (track_id, img_, date_) VALUES({}, %s, %s)").format(sql.Identifier(track_id))
+            
             # Execute the query with actual values
-            cursor.execute(query, (track_id, img_bytes, date))
+            cursor.execute(query, (img_bytes, date))
+        
         # Commit the changes to the database
-
+        conn.commit()
 def process_row(row):
     # Extract the decoded image
     frame = row['decoded_image']
