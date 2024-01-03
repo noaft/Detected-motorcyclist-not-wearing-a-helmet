@@ -26,22 +26,29 @@ def save_data_to_postgresql(frame, date, track_id):
         'port': 5432
     }
 
+    # Connect to PostgreSQL
+    conn = psycopg2.connect(**conn_params)
+
     # Encode the image
     _, img_encoded = cv2.imencode('.jpg', frame)
     img_bytes = img_encoded.tobytes()
 
-    # Connect to PostgreSQL using a context manager
-    with psycopg2.connect(**conn_params) as conn:
-        # Create a cursor
-        with conn.cursor() as cursor:
-            # SQL query with placeholders
-            query = sql.SQL("INSERT INTO images (track_id, img_, date_) VALUES({}, %s, %s)").format(sql.Identifier(track_id))
-            
-            # Execute the query with actual values
-            cursor.execute(query, (img_bytes, date))
-        
-        # Commit the changes to the database
-        conn.commit()
+    # Create a cursor
+    cur = conn.cursor()
+
+    # SQL query with placeholders
+    query = "INSERT INTO images (track_id, img_, date_) VALUES (%s, %s, %s)"
+
+    # Execute the query with actual values
+    cur.execute(query, (track_id, img_bytes, date))
+
+    # Commit the changes to the database
+    conn.commit()
+
+    # Close the cursor and connection
+    cur.close()
+    conn.close()
+
 def process_row(row):
     # Extract the decoded image
     frame = row['decoded_image']
@@ -70,14 +77,10 @@ def process_row(row):
                     label = int(label)
                     conf = float(conf)
 
-                    if class_name[label] == 'no-helmet' and track_id not in noloop :
+                    if class_name[label] == 'no-helmet' and track_id :
                         cropped_object = frame[int(y):int(y + h), int(x):int(x + w)]
                         noloop.append(track_id)
                         save_data_to_postgresql(cropped_object, timestamp, track_id)
-
-                cv2.imshow("YOLOv8 Tracking", annotated_frame)
-
-        cv2.destroyAllWindows()
 
 
 def take_data():
