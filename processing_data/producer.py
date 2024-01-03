@@ -1,10 +1,9 @@
 from kafka import KafkaProducer
 import cv2
-import numpy as np
-
+import numpy
 # Thông số Kafka
 
-def producer_kafka(kafka_topic, video_path ):
+def producer_kafka(kafka_topic, video_path):
     cap = cv2.VideoCapture(video_path)
 
     # Read and send video frames to Kafka
@@ -25,14 +24,13 @@ def producer_kafka(kafka_topic, video_path ):
 
         else:
             # Send a flag to indicate the end of the video
-            
             break
 
-        # Release the video capture object
-        cap.release()
+    # Release the video capture object outside the loop
+    cap.release()
 
-        # Flush the producer to make sure all messages are delivered
-        producer.flush()
+    # Flush the producer to make sure all messages are delivered
+    producer.flush()
 
 if __name__ == "__main__":
     kafka_bootstrap_servers = 'localhost:9092'
@@ -49,4 +47,4 @@ if __name__ == "__main__":
 
     # Open the video file
     video_path = 'D:/Python/video_test.mp4'
-    producer_kafka(kafka_topic,video_path)
+    producer_kafka(kafka_topic, video_path)

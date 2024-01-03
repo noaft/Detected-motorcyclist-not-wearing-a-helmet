@@ -69,7 +69,7 @@ def process_row(row):
                     label = int(label)
                     conf = float(conf)
 
-                    if class_name[label] == 'no-helmet' and track_id not in noloop and conf > 0.4:
+                    if class_name[label] == 'no-helmet' and track_id not in noloop :
                         cropped_object = frame[int(y):int(y + h), int(x):int(x + w)]
                         noloop.append(track_id)
                         save_data_to_postgresql(cropped_object, timestamp, track_id)
@@ -78,16 +78,6 @@ def process_row(row):
 
         cv2.destroyAllWindows()
 
-class UninterruptibleThread(threading.Thread):
-    def __init__(self, *args, **kwargs):
-        super(UninterruptibleThread, self).__init__(*args, **kwargs)
-        self.daemon = True
-
-    def run(self):
-        try:
-            super(UninterruptibleThread, self).run()
-        except KeyboardInterrupt:
-            pass
 
 def take_data():
     spark = SparkSession.builder \
@@ -116,6 +106,4 @@ def take_data():
     query.awaitTermination()
 
 if __name__ == '__main__':
-    thread = UninterruptibleThread(target=take_data)
-    thread.start()
-    thread.join()  # Wait for the thread to finish before exiting the main program
+    take_data() # Wait for the thread to finish before exiting the main program
