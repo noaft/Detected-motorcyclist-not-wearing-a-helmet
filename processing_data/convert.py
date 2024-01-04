@@ -42,5 +42,4 @@ for row in rows:
 
     # Display or save the image as needed
     cv2.imshow("Retrieved Image", img)
-    cv2.waitKey(0)  # Wait for a key press before closing the window
     cv2.destroyAllWindows()
