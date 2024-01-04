@@ -68,7 +68,7 @@ while cap.isOpened():
         for result in results:
             #take box, track_ids, labels, confs in frame
             boxes = result.boxes.xyxy.cpu().numpy()
-            track_ids = (result.boxes.id.cpu().numpy()) 
+            track_ids = result.boxes.id.cpu().numpy()
             labels = result.boxes.cls.cpu().numpy()
             confs = result.boxes.conf.cpu().numpy()
 
