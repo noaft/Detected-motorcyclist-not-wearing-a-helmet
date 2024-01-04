@@ -2,20 +2,19 @@ from kafka import KafkaConsumer
 import cv2
 import numpy as np
 from ultralytics import YOLO
-import os
 import psycopg2
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col
-from pyspark.sql.types import BinaryType
 from functools import partial
-import threading
-
+from datetime import datetime
 # Global Constants
-kafka_bootstrap_servers = 'localhost:9092'
-topic_name = 'video_test'
-class_name = ['helmets', 'no-helmets']
-noloop = []
+kafka_bootstrap_servers = 'localhost:9092' #local host kafka in local sever
+topic_name = 'video_test' #topic in kafka
+class_name = ['helmets', 'no-helmets'] # label
+noloop = [] # Avoid duplicate photos
 
+
+#func save_data_to_postgresql to save data and date to posgresql
 def save_data_to_postgresql(frame, date, track_id):
     # Database connection parameters
     conn_params = {
@@ -49,12 +48,13 @@ def save_data_to_postgresql(frame, date, track_id):
     cur.close()
     conn.close()
 
+
+# process each line
 def process_row(row):
     # Extract the decoded image
     frame = row['decoded_image']
     frame = np.frombuffer(frame, np.uint8)
     frame = cv2.imdecode(frame, cv2.IMREAD_COLOR)
-    timestamp = row['timestamp']
     # Check if frame is not None before displaying
     if frame is not None:
         # YOLOv8 model initialization
@@ -65,24 +65,35 @@ def process_row(row):
 
         if results and results[0].boxes.id is not None:
             for result in results:
+                #take box, track_ids, labels, confs in frame
                 boxes = result.boxes.xyxy.cpu().numpy()
-                track_ids = result.boxes.id.cpu().numpy()
+                track_ids = (result.boxes.id.cpu().numpy()) 
                 labels = result.boxes.cls.cpu().numpy()
                 confs = result.boxes.conf.cpu().numpy()
 
                 annotated_frame = result.plot()
-
+                #take each of box, track_ids, labels, confs in frame
                 for box, track_id, label, conf in zip(boxes, track_ids, labels, confs):
                     x, y, w, h = box[:4]
                     label = int(label)
                     conf = float(conf)
 
-                    if class_name[label] == 'no-helmets' and track_id not in noloop and confs>0.4 :
-                        cropped_object = frame[int(y):int(y + h), int(x):int(x + w)]
+                    if class_name[label] == 'no-helmets' and track_id not in noloop and conf > 0.4:
+                        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        track_id = int(track_id)
                         noloop.append(track_id)
+                        cropped_object = frame[int(y):int(y + h), int(x):int(x + w)]
                         save_data_to_postgresql(cropped_object, timestamp, track_id)
 
-        cv2.destroyAllWindows()
+            # display images
+                cv2.imshow("Detected Objects", annotated_frame)
+
+            # wait input from key by users
+                key = cv2.waitKey(1)
+
+            # if press Esc (27), exit the loop
+                if key == 27:
+                    break
 
 
 def take_data():

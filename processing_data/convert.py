@@ -4,15 +4,20 @@ from ultralytics import YOLO
 import psycopg2
 from datetime import datetime
 
+
+#file convert only test func
+
 # Global Constants
 kafka_bootstrap_servers = 'localhost:9092'
 topic_name = 'video_test'
 class_name = ['helmet', 'no-helmets']
 noloop = []
 
-# Đường dẫn đến video
+# path to dataset
 video_path = 'D:/Python/Detected-motorcyclist-not-wearing-a-helmet/data/video_test.mp4'
 
+
+#func save_data_to_postgresql to save data and date to posgresql
 def save_data_to_postgresql(frame, date, track_id):
     # Database connection parameters
     conn_params = {
@@ -26,7 +31,7 @@ def save_data_to_postgresql(frame, date, track_id):
     # Connect to PostgreSQL
     conn = psycopg2.connect(**conn_params)
 
-    # Encode the image
+    # Encode the image to bytes
     _, img_encoded = cv2.imencode('.jpg', frame)
     img_bytes = img_encoded.tobytes()
 
@@ -61,13 +66,14 @@ while cap.isOpened():
 
     if results and results[0].boxes.id is not None:
         for result in results:
+            #take box, track_ids, labels, confs in frame
             boxes = result.boxes.xyxy.cpu().numpy()
             track_ids = (result.boxes.id.cpu().numpy()) 
             labels = result.boxes.cls.cpu().numpy()
             confs = result.boxes.conf.cpu().numpy()
 
             annotated_frame = result.plot()
-
+            #take each of box, track_ids, labels, confs in frame
             for box, track_id, label, conf in zip(boxes, track_ids, labels, confs):
                 x, y, w, h = box[:4]
                 label = int(label)
