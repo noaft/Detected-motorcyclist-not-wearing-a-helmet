@@ -13,7 +13,7 @@ import threading
 # Global Constants
 kafka_bootstrap_servers = 'localhost:9092'
 topic_name = 'video_test'
-class_name = ['helmet', 'no-helmet']
+class_name = ['helmets', 'no-helmets']
 noloop = []
 
 def save_data_to_postgresql(frame, date, track_id):
@@ -77,10 +77,12 @@ def process_row(row):
                     label = int(label)
                     conf = float(conf)
 
-                    if class_name[label] == 'no-helmet' and track_id :
+                    if class_name[label] == 'no-helmets' and track_id not in noloop and confs>0.4 :
                         cropped_object = frame[int(y):int(y + h), int(x):int(x + w)]
                         noloop.append(track_id)
                         save_data_to_postgresql(cropped_object, timestamp, track_id)
+
+        cv2.destroyAllWindows()
 
 
 def take_data():
