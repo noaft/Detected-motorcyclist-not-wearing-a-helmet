@@ -7,4 +7,11 @@ I use ultralytics for collect and detect box in web, then i train with model yol
 ### Step 2: Transmit data using kafka.
 #### First: start your sever kafka in your local.
 In my file "producer.py", i have provided a data transfer mechanism using kafka.
-#### Second: 
+#### Second: i take data from kafka with func readstream in spark.
+By getting data from Spark, you can process data distributedly.
+#### Third: i save data in Postgresql.
+I took pictures of people not wearing helmets when riding motorbikes and saved them in postgresql.
+### Step 3: take data from Postgresql.
+You can get pictures from the pro and also the time of their violation.
+## Note: I think you should run in linux, u can esay control data.
+ 
