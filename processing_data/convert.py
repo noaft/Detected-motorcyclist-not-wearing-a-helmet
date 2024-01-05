@@ -42,4 +42,12 @@ for row in rows:
 
     # Display or save the image as needed
     cv2.imshow("Retrieved Image", img)
-    cv2.destroyAllWindows()
+
+    # Wait for a key event and check if it's the 'x' key
+    key = cv2.waitKey(0)
+    if key == ord('x'):
+        # Close the current image window
+        cv2.destroyAllWindows()
+    else:
+        # Continue to the next image in the loop
+        continue

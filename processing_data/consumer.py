@@ -48,7 +48,7 @@ def save_data_to_postgresql(frame, date, track_id):
     cur.close()
     conn.close()
 
-
+model = YOLO('D:/Python/best1.pt')
 # process each line
 def process_row(row):
     # Extract the decoded image
@@ -58,7 +58,6 @@ def process_row(row):
     # Check if frame is not None before displaying
     if frame is not None:
         # YOLOv8 model initialization
-        model = YOLO('D:/Python/best1.pt')
 
         # Display the frame
         results = model.track(frame, persist=True, show=True)
