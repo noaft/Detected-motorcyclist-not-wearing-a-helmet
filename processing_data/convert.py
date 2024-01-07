@@ -1,34 +1,47 @@
-import cv2
-import numpy as np
 from pymongo import MongoClient
-from io import BytesIO
-import zlib
 import base64
+import zlib
+import numpy as np
+import cv2
 
-# Kết nối đến MongoDB
+# Connect to MongoDB
 client = MongoClient("localhost", 27017)
 db = client["Traffic"]
 collection = db["images"]
 
-# Process each row
-for row in rows:
-    # Get image data from the row
-    img_data = row[0]
+# Use the aggregate method to match documents with the 'image' field
+pipeline = [
+    {
+        "$match": {"image": {"$exists": True}}
+    }
+]
 
-    # Decode the image data
-    img_array = np.frombuffer(img_data, np.uint8)
-    img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+result_cursor = collection.aggregate(pipeline)
 
-    # Chuyển ảnh thành định dạng chuỗi và nén dữ liệu
-    _, img_encoded = cv2.imencode(".jpg", img)
-    img_bytes = BytesIO(zlib.compress(img_encoded.tobytes()))
+# Loop through the results
+for document in result_cursor:
+    # Retrieve the 'image_data' field
+    image_data = document['image']
+    print(image_data)
+    try:
+        # Decode base64 and decompress image data
+        img_bytes = base64.b64decode(image_data)
+        img_data = zlib.decompress(img_bytes)
 
-    # Convert dữ liệu thành base64 để lưu vào MongoDB
-    img_base64 = base64.b64encode(img_bytes.read()).decode("utf-8")
+        # Decode the image using OpenCV
+        img_array = np.frombuffer(img_data, np.uint8)
+        img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
 
-    # Lưu ảnh vào MongoDB
-    document = {"image_data": img_base64}
-    collection.insert_one(document)
+        # Display the image
+        cv2.imshow("Image", img)
+        cv2.waitKey(1)  # Change waitKey to 1 for non-blocking display
 
-# Đóng kết nối MongoDB
+    except zlib.error as e:
+        print(f"Error decompressing data for document: {e}")
+
+# Close MongoDB connection
 client.close()
+
+# Wait for a key press before closing the OpenCV window
+cv2.waitKey(0)
+cv2.destroyAllWindows()
