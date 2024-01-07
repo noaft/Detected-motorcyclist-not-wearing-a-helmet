@@ -4,32 +4,9 @@ import psycopg2
 from io import BytesIO
 
 # Database connection parameters
-conn_params = {
-    'database': 'customer',
-    'user': 'postgres',
-    'password': '121203Toan',
-    'host': 'localhost',
-    'port': 5432
-}
-
-# Connect to PostgreSQL
-conn = psycopg2.connect(**conn_params)
-
-# Create a cursor
-cur = conn.cursor()
-
-# SQL query to retrieve image data
-query = "SELECT img_ FROM images"
-
-# Execute the query
-cur.execute(query)
-
-# Fetch all rows
-rows = cur.fetchall()
-
-# Close the cursor and connection
-cur.close()
-conn.close()
+import pymongo
+from pymongo import MongoClient
+client = MongoClient("localhost", 27017)
 
 # Process each row
 for row in rows:
