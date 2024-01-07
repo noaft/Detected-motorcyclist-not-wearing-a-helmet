@@ -1,12 +1,11 @@
-from kafka import KafkaConsumer
 import cv2
 import numpy as np
 from ultralytics import YOLO
-import psycopg2
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col
 from functools import partial
 from datetime import datetime
+from pymongo import MongoClient
 # Global Constants
 kafka_bootstrap_servers = 'localhost:9092' #local host kafka in local sever
 topic_name = 'video_test' #topic in kafka
@@ -15,38 +14,17 @@ noloop = [] # Avoid duplicate photos
 
 
 #func save_data_to_postgresql to save data and date to posgresql
-def save_data_to_postgresql(frame, date, track_id):
+def save_data_to_mongodb(frame, date, track_id):
     # Database connection parameters
-    conn_params = {
-        'database': 'customer',
-        'user': 'postgres',
-        'password': '121203Toan',
-        'host': 'localhost',
-        'port': 5432
-    }
-
-    # Connect to PostgreSQL
-    conn = psycopg2.connect(**conn_params)
-
-    # Encode the image
+    # Kết nối đến MongoDB
+    client = MongoClient("localhost", 27017)
+    db = client["Traffic"]
+    collection = db["images"]
     _, img_encoded = cv2.imencode('.jpg', frame)
     img_bytes = img_encoded.tobytes()
+    post_dict = {"image":img_bytes,"date":date,"track_id":track_id}
+    collection.insert_one(post_dict)
 
-    # Create a cursor
-    cur = conn.cursor()
-
-    # SQL query with placeholders
-    query = "INSERT INTO images (track_id, img_, date_) VALUES (%s, %s, %s)"
-
-    # Execute the query with actual values
-    cur.execute(query, (track_id, img_bytes, date))
-
-    # Commit the changes to the database
-    conn.commit()
-
-    # Close the cursor and connection
-    cur.close()
-    conn.close()
 
 model = YOLO('D:/Python/best1.pt')
 # process each line
@@ -60,7 +38,7 @@ def process_row(row):
         # YOLOv8 model initialization
 
         # Display the frame
-        results = model.track(frame, persist=True, show=True)
+        results = model.track(frame, persist=True)
 
         if results and results[0].boxes.id is not None:
             for result in results :
@@ -82,7 +60,7 @@ def process_row(row):
                         track_id = int(track_id)
                         noloop.append(track_id)
                         cropped_object = frame[int(y):int(y + h), int(x):int(x + w)]
-                        save_data_to_postgresql(cropped_object, timestamp, track_id)
+                        save_data_to_mongodb(cropped_object, timestamp, track_id)
 
 
 
