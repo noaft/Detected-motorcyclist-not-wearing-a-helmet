@@ -6,24 +6,43 @@ from pyspark.sql.functions import col
 from functools import partial
 from datetime import datetime
 from pymongo import MongoClient
+from PIL import Image
 # Global Constants
 kafka_bootstrap_servers = 'localhost:9092' #local host kafka in local sever
 topic_name = 'video_test' #topic in kafka
 class_name = ['helmets', 'no-helmets'] # label
 noloop = [] # Avoid duplicate photos
-
+import io
 
 #func save_data_to_postgresql to save data and date to posgresql
 def save_data_to_mongodb(frame, date, track_id):
-    # Database connection parameters
-    # Kết nối đến MongoDB
+    # Connect to MongoDB
     client = MongoClient("localhost", 27017)
     db = client["Traffic"]
     collection = db["images"]
-    _, img_encoded = cv2.imencode('.jpg', frame)
-    img_bytes = img_encoded.tobytes()
-    post_dict = {"image":img_bytes,"date":date,"track_id":track_id}
-    collection.insert_one(post_dict)
+
+    # Convert the NumPy array to a PIL Image
+    im = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+
+    # Convert the image to bytes
+    image_bytes = io.BytesIO()
+    im.save(image_bytes, format='JPEG')
+    image_data = image_bytes.getvalue()
+
+    # Create a document to insert into MongoDB
+    document = {
+        'image': image_data,
+        'date': date,
+        'track_id': track_id
+    }
+
+    # Insert the document into the collection
+    result = collection.insert_one(document)
+    inserted_id = result.inserted_id
+
+    return inserted_id
+
+
 
 
 model = YOLO('D:/Python/best1.pt')

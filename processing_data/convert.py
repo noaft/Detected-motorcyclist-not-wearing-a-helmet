@@ -1,47 +1,28 @@
 from pymongo import MongoClient
-import base64
-import zlib
-import numpy as np
-import cv2
+from PIL import Image
+import io
+import matplotlib.pyplot as plt
 
 # Connect to MongoDB
 client = MongoClient("localhost", 27017)
 db = client["Traffic"]
 collection = db["images"]
 
-# Use the aggregate method to match documents with the 'image' field
-pipeline = [
-    {
-        "$match": {"image": {"$exists": True}}
-    }
-]
+# Assuming you have a specific document ID, adjust accordingly
 
-result_cursor = collection.aggregate(pipeline)
+# Retrieve the document from MongoDB
+document = collection.find_one()
 
-# Loop through the results
-for document in result_cursor:
-    # Retrieve the 'image_data' field
-    image_data = document['image']
-    print(image_data)
-    try:
-        # Decode base64 and decompress image data
-        img_bytes = base64.b64decode(image_data)
-        img_data = zlib.decompress(img_bytes)
+# Check if the document exists
+if document:
+    # Extract the image data from the document
+    image_data = document.get('image')
 
-        # Decode the image using OpenCV
-        img_array = np.frombuffer(img_data, np.uint8)
-        img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+    # Convert the image data to a PIL Image
+    pil_img = Image.open(io.BytesIO(image_data))
 
-        # Display the image
-        cv2.imshow("Image", img)
-        cv2.waitKey(1)  # Change waitKey to 1 for non-blocking display
-
-    except zlib.error as e:
-        print(f"Error decompressing data for document: {e}")
-
-# Close MongoDB connection
-client.close()
-
-# Wait for a key press before closing the OpenCV window
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+    # Display the image using Matplotlib
+    plt.imshow(pil_img)
+    plt.show()
+else:
+    print("Document not found.")
