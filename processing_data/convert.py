@@ -8,13 +8,11 @@ client = MongoClient("localhost", 27017)
 db = client["Traffic"]
 collection = db["images"]
 
-# Assuming you have a specific document ID, adjust accordingly
+# Retrieve the documents from MongoDB
+documents = collection.find()
 
-# Retrieve the document from MongoDB
-document = collection.find_one()
-
-# Check if the document exists
-if document:
+# Iterate through the documents
+for document in documents:
     # Extract the image data from the document
     image_data = document.get('image')
 
@@ -24,5 +22,4 @@ if document:
     # Display the image using Matplotlib
     plt.imshow(pil_img)
     plt.show()
-else:
-    print("Document not found.")
+    
