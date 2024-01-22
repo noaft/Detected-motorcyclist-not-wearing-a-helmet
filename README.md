@@ -16,4 +16,4 @@ I took pictures of people not wearing helmets when riding motorbikes and saved t
 ### Step 3: get data from Postgresql.
 You can get pictures from the pro and also the time of their violation.
 ## Note: I think you should run in linux, u can esay control data.
- 
+### DATASET AND MODEL CNN: https://drive.google.com/drive/folders/1JHSqZ1b2yVraRpq9oWihGYT0Gnrr0eVD
