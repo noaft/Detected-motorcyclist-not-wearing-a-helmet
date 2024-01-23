@@ -7,15 +7,23 @@ from functools import partial
 from datetime import datetime
 from pymongo import MongoClient
 from PIL import Image
+from tensorflow.keras.models import load_model
+from tensorflow.keras.preprocessing import image
+from pymongo import MongoClient
+from PIL import Image
+import io
+import matplotlib.pyplot as plt
+import tensorflow as tf
 # Global Constants
 kafka_bootstrap_servers = 'localhost:9092' #local host kafka in local sever
 topic_name = 'video_test' #topic in kafka
 class_name = ['helmets', 'no-helmets'] # label
 noloop = [] # Avoid duplicate photos
 import io
-
+model_path = 'D:/Python/cnn.h5'
+cnn_model = load_model(model_path)
 #func save_data_to_postgresql to save data and date to posgresql
-def save_data_to_mongodb(frame, date, track_id):
+def save_data_to_mongodb(frame, date, track_id, label):
     # Connect to MongoDB
     client = MongoClient("localhost", 27017)
     db = client["Traffic"]
@@ -33,7 +41,8 @@ def save_data_to_mongodb(frame, date, track_id):
     document = {
         'image': image_data,
         'date': date,
-        'track_id': track_id
+        'track_id': track_id,
+        'label_id': label
     }
 
     # Insert the document into the collection
@@ -52,35 +61,40 @@ def process_row(row):
     frame = row['value']
     frame = np.frombuffer(frame, np.uint8)
     frame = cv2.imdecode(frame, cv2.IMREAD_COLOR)
+    
     # Check if frame is not None before displaying
     if frame is not None:
         # YOLOv8 model initialization
+        results_yolo = model.track(frame, persist=True)
 
-        # Display the frame
-        results = model.track(frame, persist=True)
+        if results_yolo and results_yolo[0].boxes.id is not None:
+            for result_yolo in results_yolo:
+                # Take box, track_ids, labels, confs in frame from YOLO
+                boxes_yolo = result_yolo.boxes.xyxy.cpu().numpy()
+                track_ids_yolo = result_yolo.boxes.id.cpu().numpy()
+                labels_yolo = result_yolo.boxes.cls.cpu().numpy()
+                confs_yolo = result_yolo.boxes.conf.cpu().numpy()
 
-        if results and results[0].boxes.id is not None:
-            for result in results :
-                    #take box, track_ids, labels, confs in frame
-                boxes = result.boxes.xyxy.cpu().numpy()
-                track_ids = result.boxes.id.cpu().numpy()
-                labels = result.boxes.cls.cpu().numpy()
-                confs = result.boxes.conf.cpu().numpy()
+                # Take each of box, track_ids, labels, confs in frame
+                for box_yolo, track_id_yolo, label_yolo, conf_yolo in zip(boxes_yolo, track_ids_yolo, labels_yolo, confs_yolo):
+                    x, y, w, h = box_yolo[:4]
+                    label_yolo = int(label_yolo)
+                    conf_yolo = float(conf_yolo)
 
-                annotated_frame = result.plot()
-                #take each of box, track_ids, labels, confs in frame
-                for box, track_id, label, conf in zip(boxes, track_ids, labels, confs):
-                    x, y, w, h = box[:4]
-                    label = int(label)
-                    conf = float(conf)
-
-                    if class_name[label] == 'no-helmets' and conf > 0.4 and track_id not in noloop:
+                    if track_id_yolo not in noloop:
                         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                        track_id = int(track_id)
-                        noloop.append(track_id)
-                        cropped_object = frame[int(y):int(y + h), int(x):int(x + w)]
-                        save_data_to_mongodb(cropped_object, timestamp, track_id)
+                        track_id_yolo = int(track_id_yolo)
+                        noloop.append(track_id_yolo)
+                        cropped_object_yolo = frame[int(y):int(h), int(x):int(w)]
+                        cropped_object_resized = tf.image.resize(cropped_object_yolo, (224, 224))
+                        # Apply the CNN model to the cropped object from YOLO
+                        cnn_predictions = cnn_model.predict(np.expand_dims(cropped_object_resized / 255.0, axis=0))
 
+                        # Get the predicted class name based on the CNN predictions
+                        predicted_class_cnn = '0' if cnn_predictions[0][1] > cnn_predictions[0][0] else '1'
+
+                        # Save data to MongoDB
+                        save_data_to_mongodb(cropped_object_yolo, timestamp, track_id_yolo, predicted_class_cnn)
 
 
 def take_data():

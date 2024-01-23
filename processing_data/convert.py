@@ -15,11 +15,13 @@ documents = collection.find()
 for document in documents:
     # Extract the image data from the document
     image_data = document.get('image')
-
+    label = document.get('label_id')
+    print(label)
     # Convert the image data to a PIL Image
-    pil_img = Image.open(io.BytesIO(image_data))
+    if label == '1':
+        pil_img = Image.open(io.BytesIO(image_data))
 
-    # Display the image using Matplotlib
-    plt.imshow(pil_img)
-    plt.show()
+        # Display the image using Matplotlib
+        plt.imshow(pil_img)
+        plt.show()
     
