@@ -4,7 +4,7 @@ import io
 import matplotlib.pyplot as plt
 
 # Connect to MongoDB
-client = MongoClient("localhost", 27017)
+client = MongoClient("127.0.0.1", 27017)
 db = client["Traffic"]
 collection = db["images"]
 
@@ -12,6 +12,7 @@ collection = db["images"]
 documents = collection.find()
 
 # Iterate through the documents
+
 for document in documents:
     # Extract the image data from the document
     image_data = document.get('image')

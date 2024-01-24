@@ -46,5 +46,5 @@ if __name__ == "__main__":
     producer = KafkaProducer(**producer_conf)
 
     # Open the video file
-    video_path = 'D:/Python/video_test.mp4'
+    video_path = 'D:/Python/Detected-motorcyclist-not-wearing-a-helmet/data/video_test.mp4'
     producer_kafka(kafka_topic, video_path)

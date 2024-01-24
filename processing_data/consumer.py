@@ -61,11 +61,12 @@ def process_row(row):
     frame = row['value']
     frame = np.frombuffer(frame, np.uint8)
     frame = cv2.imdecode(frame, cv2.IMREAD_COLOR)
-    
+    height, width, _ = frame.shape
+    print(f"Width (x): {width}, Height (y): {height}")
     # Check if frame is not None before displaying
     if frame is not None:
         # YOLOv8 model initialization
-        results_yolo = model.track(frame, persist=True)
+        results_yolo = model.track(frame,persist=True)
 
         if results_yolo and results_yolo[0].boxes.id is not None:
             for result_yolo in results_yolo:
@@ -81,21 +82,17 @@ def process_row(row):
                     label_yolo = int(label_yolo)
                     conf_yolo = float(conf_yolo)
 
-                    if track_id_yolo not in noloop:
+                    if track_id_yolo not in noloop and h < 200:
                         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         track_id_yolo = int(track_id_yolo)
+
                         noloop.append(track_id_yolo)
                         cropped_object_yolo = frame[int(y):int(h), int(x):int(w)]
                         cropped_object_resized = tf.image.resize(cropped_object_yolo, (224, 224))
                         # Apply the CNN model to the cropped object from YOLO
                         cnn_predictions = cnn_model.predict(np.expand_dims(cropped_object_resized / 255.0, axis=0))
-
-                        # Get the predicted class name based on the CNN predictions
-                        predicted_class_cnn = '0' if cnn_predictions[0][1] > cnn_predictions[0][0] else '1'
-
-                        # Save data to MongoDB
-                        save_data_to_mongodb(cropped_object_yolo, timestamp, track_id_yolo, predicted_class_cnn)
-
+                        predicted_class = '0' if cnn_predictions[0][1] > cnn_predictions[0][0] else '1'
+                        save_data_to_mongodb(cropped_object_yolo, timestamp, track_id_yolo, predicted_class)
 
 def take_data():
     spark = SparkSession.builder \
