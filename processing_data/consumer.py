@@ -41,7 +41,6 @@ def save_data_to_mongodb(frame, date):
     document = {
         'image': image_data,
         'date': date,
-        'track_id': track_id,
         'label_id': '0'
     }
 
