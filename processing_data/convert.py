@@ -19,7 +19,7 @@ for document in documents:
     label = document.get('label_id')
     print(label)
     # Convert the image data to a PIL Image
-    if label == '1':
+    if label == '0':
         pil_img = Image.open(io.BytesIO(image_data))
 
         # Display the image using Matplotlib

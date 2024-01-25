@@ -23,7 +23,7 @@ import io
 model_path = 'D:/Python/cnn.h5'
 cnn_model = load_model(model_path)
 #func save_data_to_postgresql to save data and date to posgresql
-def save_data_to_mongodb(frame, date, track_id, label):
+def save_data_to_mongodb(frame, date):
     # Connect to MongoDB
     client = MongoClient("localhost", 27017)
     db = client["Traffic"]
@@ -42,7 +42,25 @@ def save_data_to_mongodb(frame, date, track_id, label):
         'image': image_data,
         'date': date,
         'track_id': track_id,
-        'label_id': label
+        'label_id': '0'
+    }
+
+    # Insert the document into the collection
+    result = collection.insert_one(document)
+    inserted_id = result.inserted_id
+
+    return inserted_id
+
+def save_data_to_mongodb_quantity(date):
+    # Connect to MongoDB
+    client = MongoClient("localhost", 27017)
+    db = client["Traffic"]
+    collection = db["images"]
+
+    # Create a document to insert into MongoDB
+    document = {
+        'date': date,
+        'label_id': '1'
     }
 
     # Insert the document into the collection
@@ -52,9 +70,7 @@ def save_data_to_mongodb(frame, date, track_id, label):
     return inserted_id
 
 
-
-
-model = YOLO('D:/Python/best1.pt')
+model = YOLO('D:/Python/best.pt')
 # process each line
 def process_row(row):
     # Extract the decoded image
@@ -82,7 +98,7 @@ def process_row(row):
                     label_yolo = int(label_yolo)
                     conf_yolo = float(conf_yolo)
 
-                    if track_id_yolo not in noloop and h < 200:
+                    if track_id_yolo not in noloop :
                         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         track_id_yolo = int(track_id_yolo)
 
@@ -92,8 +108,10 @@ def process_row(row):
                         # Apply the CNN model to the cropped object from YOLO
                         cnn_predictions = cnn_model.predict(np.expand_dims(cropped_object_resized / 255.0, axis=0))
                         predicted_class = '0' if cnn_predictions[0][1] > cnn_predictions[0][0] else '1'
-                        save_data_to_mongodb(cropped_object_yolo, timestamp, track_id_yolo, predicted_class)
-
+                        if predicted_class == '0':
+                            save_data_to_mongodb(cropped_object_yolo, timestamp)
+                        else:
+                            save_data_to_mongodb_quantity( timestamp)
 def take_data():
     spark = SparkSession.builder \
         .appName("YourAppName") \
