@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Distribution</title>
+</head>
+<body>
+    <h2>Label Distribution for Date: {{ date }}</h2>
+    
+    {% for img_data in img_data_list %}
+        <img src="data:image/png;base64,{{ img_data.img_data }}" alt="Image" style="max-width: 300px;">
+        <p>Label: {{ img_data.label }}</p>
+    {% endfor %}
+
+    <img src="{{ img_path }}" alt="Pie Chart" style="max-width: 500px;">
+
+    <a href="{{ url_for('show_images', date=date) }}"><button>Show Images</button></a>
+</body>
+</html>
